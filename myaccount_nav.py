@@ -46,7 +46,7 @@ class Lookup_Results():
     
     def is_valid(self, index: int) -> bool:
         """ Whether index-th user in the list is valid (employed/has affiliate status)"""
-        return ((self.employment_status != "T") or self.is_affiliate(index))
+        return ((self.employment_status[index] != "T") or self.is_affiliate(index)) and self.eservices_ind[index] == "Active"
 
     def set_student_enddate(self, index: int):
         """ If student, sets end-date to user defined student end-date"""
@@ -90,7 +90,9 @@ class MyAccountDriver(object):
             self.__login()
         except InvalidArgumentException:
             self.__exit__(InvalidArgumentException, None, None)
-        
+        except TimeoutException:
+            self.__exit__(TimeoutException, None, None)
+
     def __enter__(self):
         return self
 
@@ -98,7 +100,8 @@ class MyAccountDriver(object):
         'Login': 'brown_login', 
         'Email': 'brown_email', 
         'Banner ID': 'banner_id',
-        'Brown ID': 'brown_id'}
+        'Brown ID': 'brown_id',
+        'Net ID': 'brown_netid'}
 
     def is_valid_search_param(self, search_param: str) -> bool:
         return search_param in self.__search_param_dictionary.keys()
@@ -107,18 +110,20 @@ class MyAccountDriver(object):
         """
         Method to execute actions on AdminID, given that you are already logged in
         - :param: filename: name of .csv file containing list of users for interacting
-        - :param: search_param: "Login" | "Email" | "Banner ID" | "Brown ID" representing field to use to search for users 
-        - :param: mode: "C" | "R" | "D" | "P" > representing (C)reate, (R)ead, (D)elete and (P)urge AdminIDs respectively
+        - :param: search_param: "Login" | "Email" | "Banner ID" | "Brown ID" | "Net ID" representing field to use to search for users 
+        - :param: mode: "C" | "R" | "D" | "P" | "M" > representing (C)reate, (R)ead, (D)elete, (P)urge, Co(M)ment AdminIDs respectively
         - :param: details: Edit_Details object containing necessary information for Creating or Deleting from AdminID
         """
-        assert self.is_valid_search_param(search_param), "Usage: Search parameters accepted are 'Login', 'Email', 'Banner ID' or 'Brown ID'"
+        assert self.is_valid_search_param(search_param), "Usage: Search parameters accepted are 'Login', 'Email', 'Banner ID', 'Brown ID' or 'Net ID'"
 
         filepath = "data/{}".format(filename)
         assert os.path.exists(filepath), "Filepath invalid"
     
         df = pd.read_csv(filepath_or_buffer = filepath, dtype = str)
-        assert search_param in df, "Usage: One of the headers should be 'Login', 'Email', 'Banner ID' or 'Brown ID'"
+        assert search_param in df, "Usage: One of the headers should be 'Login', 'Email', 'Banner ID', 'Brown ID' or 'Net ID'"
 
+        assert mode in ["C", "R", "D", "P", "M"], 'Usage: mode has to be "C" | "R" | "D" | "P" | "M"'
+        
         df_length = len(df[search_param].values)
 
         record = Lookup_Results(df_length)
@@ -177,6 +182,16 @@ class MyAccountDriver(object):
                     elif mode == "R":
                         record.completed[i] = "Y" 
 
+                    elif mode == "M":
+                        assert details != None, "To comment, please initialize an Edit_Details object."
+                        self.__driver.get('https://myaccount.brown.edu/person/privileges/{}'.format(id))
+                        
+                        try: 
+                            self.__comment(details)
+                            record.completed[i] = "Y"
+                        except self.AdminIDNotFoundError:
+                            record.completed[i] = "AdminID NIL"
+                            
                 except NoSuchElementException:
                     record.completed[i] = "User NIL"
 
@@ -200,6 +215,9 @@ class MyAccountDriver(object):
                 output_name = "{}_deleted.csv".format(os.path.splitext(filename)[0])
             elif mode == "P":
                 output_name = "{}_purged.csv".format(os.path.splitext(filename)[0])
+            elif mode == "M":
+                output_name = "{}_commented.csv".format(os.path.splitext(filename)[0])
+
 
             #Export file
             df = pd.concat([df, record.to_df()], axis = 1)
@@ -214,6 +232,9 @@ class MyAccountDriver(object):
                 print("Delete AdminID: Completed")
             elif mode == "P":
                 print("Purge AdminID: Completed")
+            elif mode == "M":
+                print("Comment AdminID: Completed")
+
 
     def __read(self, i: int, record: Lookup_Results):
         """
@@ -236,15 +257,44 @@ class MyAccountDriver(object):
             record.source_system[i] = self.__driver.find_element_by_xpath(__info_xpath_dictionary['source_system']).text
 
             if record.is_affiliate(i):
-                record.end_date[i] = self.__driver.find_element_by_xpath(self.__info_xpath_dictionary['end_date'])
+                record.end_date[i] = self.__driver.find_element_by_xpath(__info_xpath_dictionary['end_date']).text
 
         except NoSuchElementException:
             pass
     
+    def __comment(self, details: Edit_Details) -> None:
+        """
+        Method to bulk-add a comment for an app across multiple users
+        :param: details: desired comment should be input in the details class
+        """
+        try:
+            edit_link = self.__driver.find_element_by_xpath('//tr/td//span[contains(text(), "{}")]/ancestor::td/following-sibling::td[6]/a'.format(details.app_code)).get_attribute('href')
+            self.__driver.get(edit_link)
+        except NoSuchElementException:
+            raise self.AdminIDNotFoundError("App to comment was not found")
+        
+        comment_box = self.__driver.find_element_by_name("comments")
+        comment_box.send_keys(". {}".format(details.comment)) 
+
+        delete_doneby = self.__driver.find_element_by_xpath('//span[@class = "twitter-typeahead hidden"]')
+        self.__driver.execute_script("arguments[0].setAttribute('class', 'twitter-typeahead')", delete_doneby)
+
+        editor_search_box = self.__driver.find_element_by_id("searchField")
+        editor_search_box.send_keys(details.lookup_name)
+
+        doneby_xpath = '//div[@class = "tt-dataset-my-dataset"]/span/div/p/b[contains(text(), "{}")]'.format(details.name)
+        WebDriverWait(self.__driver,10).until(EC.presence_of_element_located((By.XPATH, doneby_xpath)))
+        doneby_dropdown = self.__driver.find_element_by_xpath(doneby_xpath)
+        doneby_dropdown.click()
+
+        WebDriverWait(self.__driver, 20).until(EC.text_to_be_present_in_element((By.XPATH, '//p[@class = "form-control-static"]/span'), details.name))
+        submit = self.__driver.find_element_by_xpath('//div[@class = "col-sm-6"]/button')
+        submit.click()
+
     def __create(self, details: Edit_Details, record: Lookup_Results, index: int) -> None :
         """
         Method to create Admin ID entry on privilege edit page. 
-        Selects app, enters comment, fills 'edited by' field, clicks submit/
+        Selects app, enters comment, fills 'edited by' field, clicks submit.
         """
         
         select_app = self.__driver.find_element_by_xpath('//select/option[contains(text(),"{}")]'.format(details.app_code))
@@ -267,7 +317,7 @@ class MyAccountDriver(object):
             attn_date_box.send_keys(record.end_date[index])
 
         comment_box = self.__driver.find_element_by_name("comments")
-        comment_box.send_keys(". {}".format(details.comment)) 
+        comment_box.send_keys("{}".format(details.comment)) 
 
         editor_search_box = self.__driver.find_element_by_id("searchField")
         editor_search_box.send_keys(details.lookup_name)
@@ -304,10 +354,13 @@ class MyAccountDriver(object):
         clear_attn.click()
 
         comment_box = self.__driver.find_element_by_name("comments")
-        comment_box.send_keys(". {}".format(details.comment)) 
+        comment_box.send_keys("{}".format(details.comment)) 
 
-        delete_doneby = self.__driver.find_element_by_xpath('//span[@class = "twitter-typeahead hidden"]')
-        self.__driver.execute_script("arguments[0].setAttribute('class', 'twitter-typeahead')", delete_doneby)
+        try:
+            delete_doneby = self.__driver.find_element_by_xpath('//span[@class = "twitter-typeahead hidden"]')
+            self.__driver.execute_script("arguments[0].setAttribute('class', 'twitter-typeahead')", delete_doneby)
+        except:
+            pass
 
         editor_search_box = self.__driver.find_element_by_id("searchField")
         editor_search_box.send_keys(details.lookup_name)
@@ -349,7 +402,7 @@ class MyAccountDriver(object):
         #     raise InvalidArgumentException("Sorry, invalid login details")
         # else:
         WebDriverWait(self.__driver,30).until(EC.visibility_of_element_located((By.NAME, "first_name")))
-     
+    
     def __exit__(self, exc_type, exc_value, tb):
         self.__driver.quit()
 
