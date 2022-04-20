@@ -2,7 +2,7 @@
 
 This script automates the navigation of Brown University’s MyAccount website for batch AdminID actions using the Chrome browser.
 
-The user inputs a csv file containing identifying information of the users they would like to access on MyAccount (Login/Email/Banner ID/ Brown ID). The program can then perform:
+The user inputs a csv file containing identifying information of the users they would like to access on MyAccount (Login/Email/Banner ID/ Brown ID/Net ID). The program can then perform:
 - Reading: Generate a CSV file containing information scraped from the “Overview” page of a user’s MyAccount.
 - Creating: Create AdminIDs for a specific app for a batch of users, setting a comment and “Performed By:” field, and also automatically setting “End Date’ attentions for students and affiliates. The script will not create an AdminID if it finds that a user is terminated and not an affiliate. Also generates a CSV file of information as per the Reading function.
 - Deleting: Delete AdminIDs for a specific app for a batch of users, setting a comment, “Performed By” and “Expiry Reason” fields. Also generates a CSV file of information as per the Reading function.
