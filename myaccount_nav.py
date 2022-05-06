@@ -101,7 +101,8 @@ class MyAccountDriver(object):
         'Email': 'brown_email', 
         'Banner ID': 'banner_id',
         'Brown ID': 'brown_id',
-        'Net ID': 'brown_netid'}
+        'Net ID': 'brown_netid',
+        'Workday ID': 'emp_wd_src_id'}
 
     def is_valid_search_param(self, search_param: str) -> bool:
         return search_param in self.__search_param_dictionary.keys()
@@ -110,11 +111,11 @@ class MyAccountDriver(object):
         """
         Method to execute actions on AdminID, given that you are already logged in
         - :param: filename: name of .csv file containing list of users for interacting
-        - :param: search_param: "Login" | "Email" | "Banner ID" | "Brown ID" | "Net ID" representing field to use to search for users 
+        - :param: search_param: "Login" | "Email" | "Banner ID" | "Brown ID" | "Net ID" | "Workday ID" representing field to use to search for users 
         - :param: mode: "C" | "R" | "D" | "P" | "M" > representing (C)reate, (R)ead, (D)elete, (P)urge, Co(M)ment AdminIDs respectively
         - :param: details: Edit_Details object containing necessary information for Creating or Deleting from AdminID
         """
-        assert self.is_valid_search_param(search_param), "Usage: Search parameters accepted are 'Login', 'Email', 'Banner ID', 'Brown ID' or 'Net ID'"
+        assert self.is_valid_search_param(search_param), "Usage: Search parameters accepted are 'Login', 'Email', 'Banner ID', 'Brown ID', 'Net ID' or 'Workday ID"
 
         filepath = "data/{}".format(filename)
         assert os.path.exists(filepath), "Filepath invalid"
