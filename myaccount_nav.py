@@ -62,7 +62,15 @@ class SvcAcctLookup():
     """
     Class to encode and check user SvcLookup details stored from checking MyAccount page
     - :param: length: Length of the input list of users
-    - :param: (Optional) Specify a student end-date, set as 05/31/2022 by default
+
+    - :field: type: Service Account Type
+    - :field: sponsor: current sponsor
+    - :field: end date: current end date
+    - :field: pwd_type: "CAP" | "Dept" | "Don't change"
+    - :field: sso: Whether SSO is set up for the account
+    - :field: completed: "Y" | "N" | "Acct NIL" | "T"  represents if requested action was completed. 
+                         "Y" for completed, "N" for not completed due to invalid details (eg. terminated), "NIL" for not found 
+                         according to search parameter,  "T" for a program time-out for any reason
     """
     def __init__(self, length : int):
         self.type = np.empty(length, dtype=object)
@@ -136,10 +144,15 @@ class MyAccountDriver(object):
 
     def exe_service_account(self, filename: str, search_param: str, mode: str) -> None:
         """
-        Method to execute actions on service account, given that you are already logged in
+        Method to execute actions on AdminID, given that you are already logged in
+        - :param: filename: name of .csv file containing list of accounts for interacting
+        - :param: search_param: "Username" | "Net ID" representing field to use to search for accounts 
+        - :param: mode: "S" | "M" | "E" | "P" | "R" for (S)ponsor change, Co(m)ment, (E)nd date change, (P)assword type change or (R)ead
         """
+        
         assert self.is_valid_svcacct_search_param(search_param), "Usage: Search parameters accepted are 'Net ID' or 'Username'"
-
+        assert mode in ["S", "M", "E", "P", "R"], 'Usage: mode has to be "S", "M", "E", "R" or "P"'
+        
         filepath = "data/{}".format(filename)
         assert os.path.exists(filepath), "Filepath invalid"
     
@@ -195,6 +208,9 @@ class MyAccountDriver(object):
 
                 except TimeoutException:
                     record.completed[i] = "T"
+
+                except:
+                    record.completed[i] = "N"
                     
                 finally: 
                     self.__driver.get('https://myaccount.brown.edu/serviceaccounts/list')
@@ -251,6 +267,7 @@ class MyAccountDriver(object):
     def __pwd_type_svcacct(self, type: str) -> None:
         """
         Method to change end date for a service account
+        - :field: type: new desired type
         """
 
         current = self.__driver.find_element_by_xpath('//select[@id="pass_types"]/option[@selected="selected"]')
@@ -270,6 +287,7 @@ class MyAccountDriver(object):
     def __end_date_svcacct(self, end_date: str) -> None:
         """
         Method to change end date for a service account
+        - :field: end_date: new end-date to change to
         """
 
         end_date_box = self.__driver.find_element_by_name("end_date")
@@ -286,6 +304,7 @@ class MyAccountDriver(object):
     def __comment_svcacct(self, comment: str) -> None:
         """
         Method to add a comment for a service account
+        - :field: comment: comment to append onto existing comment
         """
         comment_box = self.__driver.find_element_by_name("comments")
         comment_box.send_keys(". {}".format(comment)) 
@@ -608,9 +627,6 @@ class MyAccountDriver(object):
         login_button = self.__driver.find_element_by_name('_eventId_proceed')
         login_button.click()
 
-        # if EC.presence_of_element_located((By.XPATH, '//p[@class = "form-element form-error"]')):
-        #     raise InvalidArgumentException("Sorry, invalid login details")
-        # else:
         WebDriverWait(self.__driver,30).until(EC.visibility_of_element_located((By.NAME, "first_name")))
     
     def __exit__(self, exc_type, exc_value, tb):
