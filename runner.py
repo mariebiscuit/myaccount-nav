@@ -1,10 +1,5 @@
 from myaccount_nav import *
 
-# modify sponsor for a given app
-# change end date for service account
-# change account password type -- change options
-# add comments at the bottom
-
 if __name__ == '__main__':
     with open('login_details.txt') as f:
         username = f.readline()
