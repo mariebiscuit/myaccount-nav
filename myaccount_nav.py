@@ -8,6 +8,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import InvalidArgumentException, NoSuchElementException, TimeoutException
+from selenium.webdriver.firefox.options import Options
 
 class AdminIDLookup():
     """
@@ -111,6 +112,13 @@ class MyAccountDriver(object):
     def __init__(self, username: str, password: str):
         self.__username = username
         self.__password = password
+
+        # FIREFOX
+        # options = Options()
+        # options.binary_location = r""
+        # self.__driver = webdriver.Firefox(options=options)
+
+        #CHROME
         self.__driver = webdriver.Chrome()
         
         try: 
