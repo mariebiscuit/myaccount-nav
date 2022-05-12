@@ -7,11 +7,10 @@ if __name__ == '__main__':
 
         with MyAccountDriver(username, password) as driver:
             #EXAMPLES
-            # intuit_remove = Edit_Details("INTU", "", "Alyssa Marie Li Ann Loo", date = "01/26/2022")
-            # driver.exe_admin_id("intui_remove.csv", "Login", "D", intuit_remove)
-
-            # imc_rem = Edit_Details("IMC", "Removed in CAP Audit 2022 DP298013", "Alyssa Marie Li Ann Loo", date="05/02/2022")
-            # driver.exe_admin_id("spirion_read.csv", "Login", "R", imc_rem)
+            # zoom_remove = AdminIDDetails("ZOOM", "Added in CAP Audit Test", "Alyssa Marie Li Ann Loo", expiry_reason="Revoked", date="11/05/2022")
+            # driver.exe_admin_id("test.csv", "Login", "R", zoom_remove)
 
             # driver.exe_service_account("svc_acct.csv", "Net ID", "R")
+
+
             pass
